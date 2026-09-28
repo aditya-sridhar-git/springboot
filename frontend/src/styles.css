@@ -1,0 +1,451 @@
+/* Sentinel — night-shift instrument panel for a cloud SOC.
+   Colour is rationed: the ramp below is the only saturation on the page, and it
+   means one thing only, which is how urgent a detection is. */
+
+:root {
+  --ink:        #0e1621;
+  --ink-sunk:   #0a111a;
+  --panel:      #142132;
+  --panel-lift: #1a2c41;
+  --line:       #223449;
+  --line-soft:  #1a293a;
+  --text:       #d8e2ee;
+  --text-dim:   #93a6bd;
+  --muted:      #6d829b;
+
+  --sev-info:     #4a7fa8;
+  --sev-low:      #4fa3a0;
+  --sev-medium:   #d9a441;
+  --sev-high:     #e0723c;
+  --sev-critical: #e5484d;
+
+  --sans: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+
+  --gap: 18px;
+}
+
+* { box-sizing: border-box; }
+
+html { color-scheme: dark; }
+
+body {
+  margin: 0;
+  background: var(--ink);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -0.01em; }
+
+/* A console fills the screen: the rail is fixed, and every pane below it scrolls itself
+   rather than pushing the page taller than the monitor. */
+#root {
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+/* ---------------------------------------------------------------- status rail */
+
+.rail {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  flex-wrap: wrap;
+  padding: 14px 24px;
+  background: var(--ink-sunk);
+  border-bottom: 1px solid var(--line);
+  flex: none;
+  z-index: 10;
+}
+
+.rail-identity { display: flex; align-items: baseline; gap: 10px; }
+
+.rail-identity h1 { font-size: 19px; letter-spacing: 0.02em; }
+
+.rail-identity p { margin: 0; color: var(--muted); font-size: 12.5px; }
+
+.mark {
+  width: 9px;
+  height: 20px;
+  align-self: center;
+  background: linear-gradient(var(--sev-critical) 34%, var(--sev-high) 34% 67%, var(--sev-medium) 67%);
+}
+
+.rail-readout { display: flex; gap: 28px; margin: 0; flex-wrap: wrap; }
+
+.rail-readout dt { color: var(--muted); font-size: 11.5px; }
+
+.rail-readout dd {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 18px;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.rail-link {
+  margin: 0 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+
+.beacon {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+
+.rail-link[data-state="live"] .beacon { background: var(--sev-low); box-shadow: 0 0 0 3px rgba(79, 163, 160, 0.18); }
+.rail-link[data-state="lost"] .beacon { background: var(--sev-critical); }
+
+/* ------------------------------------------------------------------- layout */
+
+main {
+  display: grid;
+  grid-template-columns: minmax(0, 1.9fr) minmax(300px, 1fr);
+  grid-template-rows: minmax(200px, 1fr) auto auto;
+  grid-template-areas:
+    "board instruments"
+    "drills instruments"
+    "tape tape";
+  gap: var(--gap);
+  padding: var(--gap) 24px 20px;
+  max-width: 1600px;
+  width: 100%;
+  margin: 0 auto;
+  flex: 1;
+  min-height: 0;
+}
+
+.board { grid-area: board; display: flex; flex-direction: column; min-height: 0; }
+.instruments {
+  grid-area: instruments;
+  display: flex;
+  flex-direction: column;
+  gap: var(--gap);
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+.instruments > .instrument { flex: none; }
+.drills { grid-area: drills; }
+.tape { grid-area: tape; }
+
+.board-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+
+.board-head h2, .instrument h2, .drills-head h2, .tape h2 { font-size: 13px; color: var(--text-dim); }
+
+.filters { display: flex; gap: 4px; }
+
+.filter {
+  font: inherit;
+  font-size: 12px;
+  color: var(--muted);
+  background: none;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  padding: 3px 9px;
+  cursor: pointer;
+}
+
+.filter:hover { color: var(--text); }
+.filter.is-on { color: var(--text); border-color: var(--line); background: var(--panel); }
+
+:where(button, a, summary):focus-visible {
+  outline: 2px solid var(--sev-info);
+  outline-offset: 2px;
+}
+
+/* -------------------------------------------------------------- alert strips */
+
+.strips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  /* The feed scrolls inside the board, so the drill controls and the tape never move. */
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+}
+
+.empty {
+  color: var(--muted);
+  font-size: 13px;
+  max-width: 52ch;
+  padding: 26px 0 8px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.strip {
+  display: grid;
+  grid-template-columns: 4px 1fr auto;
+  background: var(--panel);
+  border-bottom: 1px solid var(--ink);
+}
+
+.strip[data-severity="CRITICAL"] .keel { background: var(--sev-critical); }
+.strip[data-severity="HIGH"]     .keel { background: var(--sev-high); }
+.strip[data-severity="MEDIUM"]   .keel { background: var(--sev-medium); }
+.strip[data-severity="LOW"]      .keel { background: var(--sev-low); }
+.strip[data-severity="INFO"]     .keel { background: var(--sev-info); }
+
+.strip[data-status="ACKNOWLEDGED"] { opacity: 0.72; }
+.strip[data-status="RESOLVED"], .strip[data-status="FALSE_POSITIVE"] { opacity: 0.45; }
+
+.keel { grid-row: 1 / -1; }
+
+.strip-body { padding: 10px 14px 11px; min-width: 0; }
+
+.strip-line {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 11.5px;
+}
+
+.strip-line .sev { font-weight: 600; letter-spacing: 0.04em; }
+.strip[data-severity="CRITICAL"] .sev { color: var(--sev-critical); }
+.strip[data-severity="HIGH"]     .sev { color: var(--sev-high); }
+.strip[data-severity="MEDIUM"]   .sev { color: var(--sev-medium); }
+.strip[data-severity="LOW"]      .sev { color: var(--sev-low); }
+.strip[data-severity="INFO"]     .sev { color: var(--sev-info); }
+
+.strip-title {
+  margin: 3px 0 0;
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.strip-score {
+  padding: 10px 16px 0 0;
+  font-family: var(--mono);
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-dim);
+  text-align: right;
+  align-self: start;
+}
+
+.strip-score small { display: block; font-size: 10px; color: var(--muted); font-family: var(--sans); }
+
+.strip details { margin-top: 8px; }
+
+.strip summary {
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-dim);
+  width: fit-content;
+  list-style: none;
+}
+
+.strip summary::-webkit-details-marker { display: none; }
+.strip summary::before { content: "+ "; color: var(--muted); }
+.strip details[open] summary::before { content: "− "; }
+.strip summary:hover { color: var(--text); }
+
+.detail {
+  margin-top: 9px;
+  padding: 12px 14px;
+  background: var(--ink-sunk);
+  border-left: 1px solid var(--line);
+}
+
+.detail p { margin: 0 0 10px; max-width: 72ch; color: var(--text-dim); }
+
+.evidence {
+  display: grid;
+  grid-template-columns: minmax(120px, auto) 1fr;
+  gap: 3px 16px;
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 11.5px;
+}
+
+.evidence dt { color: var(--muted); }
+.evidence dd { margin: 0; color: var(--text); overflow-wrap: anywhere; }
+
+.triage { display: flex; gap: 8px; margin-top: 12px; }
+
+.triage button {
+  font: inherit;
+  font-size: 12px;
+  color: var(--text-dim);
+  background: var(--panel-lift);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 4px 11px;
+  cursor: pointer;
+}
+
+.triage button:hover:not(:disabled) { color: var(--text); border-color: var(--text-dim); }
+.triage button:disabled { opacity: 0.45; cursor: default; }
+
+.triage-error { margin: 8px 0 0; font-size: 12px; color: var(--sev-high); }
+
+/* --------------------------------------------------------------- instruments */
+
+.instrument {
+  background: var(--panel);
+  border: 1px solid var(--line-soft);
+  padding: 13px 15px 15px;
+}
+
+.instrument h2 { margin-bottom: 11px; }
+
+.sparkline { width: 100%; height: 84px; display: block; }
+
+.scale { margin: 8px 0 0; font-size: 11px; color: var(--muted); font-family: var(--mono); }
+.scale .sep { display: inline-block; width: 1px; height: 9px; background: var(--line); margin: 0 8px; vertical-align: -1px; }
+
+.ledger { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+
+.ledger li { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: baseline; }
+
+.ledger .label { font-size: 12.5px; color: var(--text-dim); overflow-wrap: anywhere; }
+.ledger .count { font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+
+.ledger .bar { grid-column: 1 / -1; height: 3px; background: var(--line-soft); }
+.ledger .bar span { display: block; height: 100%; background: var(--sev-info); }
+
+.ledger li[data-severity="CRITICAL"] .bar span { background: var(--sev-critical); }
+.ledger li[data-severity="HIGH"]     .bar span { background: var(--sev-high); }
+.ledger li[data-severity="MEDIUM"]   .bar span { background: var(--sev-medium); }
+.ledger li[data-severity="LOW"]      .bar span { background: var(--sev-low); }
+.ledger li[data-severity="INFO"]     .bar span { background: var(--sev-info); }
+
+.ledger-plain .bar span { background: var(--text-dim); }
+
+.ledger .quiet { color: var(--muted); font-size: 12px; }
+
+/* -------------------------------------------------------------------- drills */
+
+.drills { border-top: 1px solid var(--line); padding-top: 14px; }
+
+.drills-head p { margin: 4px 0 12px; color: var(--muted); font-size: 12.5px; max-width: 68ch; }
+
+.drill-set { display: flex; flex-wrap: wrap; gap: 7px; }
+
+.drill {
+  font: inherit;
+  font-size: 12.5px;
+  text-align: left;
+  color: var(--text-dim);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  padding: 7px 12px;
+  cursor: pointer;
+}
+
+.drill:hover:not(:disabled) { color: var(--text); border-color: var(--text-dim); background: var(--panel-lift); }
+.drill:disabled { opacity: 0.5; cursor: progress; }
+.drill.is-sent { border-color: var(--sev-low); color: var(--sev-low); }
+
+/* ---------------------------------------------------------------- event tape
+   The one loud thing on the page: raw API calls arriving on a teleprinter. */
+
+.tape {
+  background: var(--ink-sunk);
+  border: 1px solid var(--line-soft);
+  border-left: 3px solid var(--line);
+  padding: 12px 0 4px;
+}
+
+.tape h2 { padding: 0 16px 9px; }
+
+.tape ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 184px;
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.tape li {
+  display: grid;
+  grid-template-columns: 82px 92px 190px minmax(0, 1fr) auto;
+  gap: 14px;
+  padding: 3px 16px;
+  white-space: nowrap;
+  color: var(--text-dim);
+  animation: tape-in 220ms ease-out;
+}
+
+.tape li > * { overflow: hidden; text-overflow: ellipsis; }
+.tape .t-time { color: var(--muted); }
+.tape .t-actor { color: var(--text); }
+.tape .t-detail { color: var(--muted); }
+.tape .t-outcome { color: var(--muted); }
+.tape li[data-outcome="FAILURE"] .t-outcome { color: var(--sev-high); }
+
+@keyframes tape-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* A newly raised alert announces itself once, then holds still. */
+@keyframes keel-flash {
+  0%, 100% { opacity: 1; }
+  30%      { opacity: 0.25; }
+}
+
+.strip.is-new .keel { animation: keel-flash 900ms ease-in-out 2; }
+
+@media (prefers-reduced-motion: reduce) {
+  .tape li, .strip.is-new .keel { animation: none; }
+}
+
+/* --------------------------------------------------------------- responsive */
+
+@media (max-width: 1080px) {
+  main {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas: "board" "instruments" "drills" "tape";
+    padding: var(--gap) 16px 24px;
+  }
+  .rail { gap: 18px; padding: 12px 16px; }
+  .rail-link { margin-left: 0; }
+  /* Stacked on one column there is no gutter to fill, so let the document scroll normally. */
+  #root { height: auto; overflow: visible; }
+  main { grid-template-rows: none; }
+  .instruments { overflow-y: visible; }
+  .strips { overflow-y: visible; }
+}
+
+@media (max-width: 620px) {
+  .rail-readout { gap: 18px; }
+  .rail-readout dd { font-size: 16px; }
+  .tape ol { overflow-x: auto; }
+  .tape li { grid-template-columns: 74px 88px 170px minmax(160px, 1fr) auto; }
+  .strip-score { font-size: 17px; padding-right: 12px; }
+  .evidence { grid-template-columns: 1fr; gap: 1px; }
+  .evidence dd { margin-bottom: 6px; }
+}

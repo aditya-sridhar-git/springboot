@@ -1,0 +1,132 @@
+spring:
+  application:
+    name: cloud-security-analyzer
+
+  datasource:
+    url: ${POSTGRES_URL:jdbc:postgresql://localhost:5432/cloudsec}
+    username: ${POSTGRES_USER:cloudsec}
+    password: ${POSTGRES_PASSWORD:cloudsec}
+    hikari:
+      maximum-pool-size: 16
+      pool-name: cloudsec-pool
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 100
+        order_inserts: true
+
+  web:
+    resources:
+      cache:
+        cachecontrol:
+          # The dashboard ships inside the jar, so a browser holding a cached copy after an
+          # upgrade would silently show the old console. Revalidate instead.
+          max-age: 0
+          must-revalidate: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+  data:
+    redis:
+      # The analyzer talks to Redis through StringRedisTemplate, never through Spring Data
+      # repositories; turning the scan off keeps it from trying to claim the JPA interfaces.
+      repositories:
+        enabled: false
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      timeout: 2s
+      lettuce:
+        pool:
+          max-active: 32
+          max-idle: 16
+
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    consumer:
+      group-id: cloud-security-analyzer
+      auto-offset-reset: latest
+      max-poll-records: 200
+      properties:
+        spring.json.trusted.packages: com.cloudsec.model
+    producer:
+      acks: "1"
+      linger-ms: 20
+      compression-type: lz4
+    listener:
+      ack-mode: batch
+
+cloudsec:
+  environment: ${CLOUDSEC_ENV:local}
+  events-topic: cloud.security.events
+  alerts-topic: cloud.security.alerts
+  topic-partitions: 6
+  topic-replicas: 1
+  recent-alert-cache-size: 200
+  recent-event-cache-size: 100
+  stats-push-interval: 2s
+  event-retention: 7d
+
+  detection:
+    persist-events: true
+    disabled-rules: []
+    brute-force:
+      failure-threshold: 5
+      window: 5m
+    impossible-travel:
+      max-speed-kmh: 900
+      min-distance-km: 100
+      sighting-ttl: 24h
+    exfiltration:
+      bytes-threshold: 2147483648
+      window: 10m
+    access-denied:
+      threshold: 12
+      window: 5m
+    open-ingress:
+      sensitive-ports: [22, 3389, 3306, 5432, 6379, 27017, 9200]
+      wildcard-cidrs: ["0.0.0.0/0", "::/0"]
+
+  simulator:
+    enabled: ${SIMULATOR_ENABLED:true}
+    events-per-second: ${SIMULATOR_EPS:6}
+    attack-interval-seconds: ${SIMULATOR_ATTACK_INTERVAL:45}
+    random-seed: 0
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+      probes:
+        enabled: true
+  metrics:
+    tags:
+      application: cloud-security-analyzer
+  prometheus:
+    metrics:
+      export:
+        enabled: true
+  datadog:
+    metrics:
+      export:
+        enabled: ${DATADOG_ENABLED:false}
+        api-key: ${DATADOG_API_KEY:}
+        uri: ${DATADOG_URI:https://api.datadoghq.com}
+        step: 30s
+        descriptions: true
+
+logging:
+  level:
+    com.cloudsec: INFO
+    org.apache.kafka: WARN
+    org.apache.kafka.clients.NetworkClient: ERROR
